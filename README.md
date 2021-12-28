@@ -3,7 +3,7 @@
 GPU-Device-Plugin for KETI-ExaScale Platform
 
 Developed by KETI
-## 목차
+## Contents
 [1. Requirment](#requirement)
 
 [2. How to Install](#how-to-install)
