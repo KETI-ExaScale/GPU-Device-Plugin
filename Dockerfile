@@ -21,7 +21,7 @@ RUN export CGO_LDFLAGS_ALLOW='-Wl,--unresolved-symbols=ignore-in-object-files' &
 
 
 #FROM amazonlinux:latest
-FROM nvidia/cuda:10.0-base-ubuntu16.04
+FROM nvidia/cuda:11.4.2-base-ubuntu20.04
 
 ENV NVIDIA_VISIBLE_DEVICES=all
 ENV NVIDIA_DRIVER_CAPABILITIES=utility

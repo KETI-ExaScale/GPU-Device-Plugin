@@ -1,0 +1,45 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: userpod
+  namespace: userpod
+spec:
+  template:
+    spec:
+      hostIPC: true
+      schedulerName: gpu-scheduler
+      containers:
+        #- image: seedjeffwan/nbody:cuda-10.1
+        - image: ketidevit/kmc-cuda-test:v31
+          name: multi-gpu
+          args:
+            - ./nbody
+            - -benchmark
+            - -numbodies=151200
+            # - -numdevices=2
+            # - printenv
+          env:
+            - name: CUDA_MPS_PIPE_DIRECTORY
+              value: "/tmp/nvidia-mps"
+            - name: CUDA_MPS_LOG_DIRECTORY
+              value: "/tmp/nvidia-log"
+            # - name: CUDA_MPS_PINNED_DEVICE_MEM_LIMIT
+            #   value: "GPU-a06cd524-72c4-d6f0-4eda-d64af512dd8b=1G,GPU-f6db4146-092d-146f-0814-8ff90b04f3d2=1G"
+          resources:
+            limits:
+              keti.com/mpsgpu: 1
+          volumeMounts:
+            - name: nvidia-mps
+              mountPath: /tmp/nvidia-mps
+            - name: mps-log
+              mountPath: /tmp/nvidia-log
+      volumes:
+        - name: nvidia-mps
+          hostPath:
+            path: /tmp/nvidia-mps
+        - name: mps-log
+          hostPath:
+            path: /tmp/nvidia-log
+      restartPolicy: Never
+  #backoffLimit: 4
+  parallelism: 3

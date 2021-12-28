@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/NVIDIA/go-gpuallocator/gpuallocator"
 	"github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -18,7 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
+	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 )
 
 const (
@@ -63,10 +64,10 @@ type NvidiaDevicePlugin struct {
 	devs         []*pluginapi.Device
 	physicalDevs []string
 
-	socket string
-
-	stop   chan interface{}
-	health chan *pluginapi.Device
+	socket         string
+	allocatePolicy gpuallocator.Policy
+	stop           chan interface{}
+	health         chan *pluginapi.Device
 
 	server *grpc.Server
 }
@@ -227,12 +228,12 @@ func getpendingpodslist() (*v1.PodList, error) {
 	host_kubeClient := kubernetes.NewForConfigOrDie(host_config)
 	MY_NODENAME := os.Getenv("MY_NODE_NAME")
 	selector := fields.SelectorFromSet(fields.Set{"spec.nodeName": MY_NODENAME, "status.phase": "Pending"})
-	podlist, err := host_kubeClient.CoreV1().Pods(v1.NamespaceAll).List(metav1.ListOptions{
+	podlist, err := host_kubeClient.CoreV1().Pods(v1.NamespaceAll).List(context.TODO(), metav1.ListOptions{
 		FieldSelector: selector.String(),
 		LabelSelector: labels.Everything().String(),
 	})
 	for i := 0; i < 3 && err != nil; i++ {
-		podlist, err = host_kubeClient.CoreV1().Pods(v1.NamespaceAll).List(metav1.ListOptions{
+		podlist, err = host_kubeClient.CoreV1().Pods(v1.NamespaceAll).List(context.TODO(), metav1.ListOptions{
 			FieldSelector: selector.String(),
 			LabelSelector: labels.Everything().String(),
 		})
@@ -244,7 +245,7 @@ func getpendingpodslist() (*v1.PodList, error) {
 	return podlist, nil
 }
 
-var onepodnum = 0
+//var onepodnum = 0
 var podname = ""
 
 // Allocate which return list of devices.
@@ -257,9 +258,6 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.Alloc
 	allocatenum := 0
 	var UUIDs string
 	var UUID []string
-	//파드의 정보를 읽어온다. 거기서 펜딩중인 파드를 찾는다. 거기의 어노테이션에서 gpu를 찾는데... 어노테이션에서 특정값인것을 뽑는다?
-	//파드정보가 안들어와 그래서 얘 한거보면 모든파드? 해당 노드의 모든 파드를 읽고 거기서 펜딩중인걸 전부찾아서 어노테이션을 읽는데
-	//우리도 이걸로 해도 당장은 되겠지만 후에 펜딩중인 파드가 많을때는? 어카지
 	podlist, err := getpendingpodslist()
 	pods := []v1.Pod{}
 	MY_NODENAME := os.Getenv("MY_NODE_NAME")
@@ -271,15 +269,16 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.Alloc
 		}
 	}
 	var assumePod v1.Pod
+	var limits string
 	for i := 0; i < 10; i++ {
-		for _, pod := range pods { //파드가 여러개일떄는?
+		for _, pod := range pods {
 			assumePod = pod
 			UUIDIndex := "UUID"
 			if len(assumePod.ObjectMeta.Annotations) > 0 {
 				UUIDs = assumePod.ObjectMeta.Annotations[UUIDIndex]
+				limits = assumePod.ObjectMeta.Annotations["GPUlimits"]
 			}
 		}
-		//fmt.Println("assum and podname", podname, assumePod.ObjectMeta.Name)
 		if podname != assumePod.ObjectMeta.Name {
 			podname = assumePod.ObjectMeta.Name
 			break
@@ -295,12 +294,14 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.Alloc
 		}
 		time.Sleep(100000000)
 	}
+
 	if assumePod.Namespace != "gpu" { //User Pod UUID에 할당
 		if err != nil {
 			fmt.Printf("pendingpod error\n")
 		}
-
+		//fmt.Println(UUIDs)
 		UUID = strings.Split(UUIDs, ",")
+		fmt.Println("----------------GPU Scheduler 선정 GPU----------------")
 		fmt.Printf("pod name : %v\n", assumePod.Name)
 		fmt.Printf("Pod Annotation UUID : %v\n", UUID)
 		physicalDevsMap := make(map[string]bool)
@@ -335,8 +336,14 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.Alloc
 			// }
 			visibleDevs := make([]string, 0, len(physicalDevsMap))
 			visibleDev := ""
+			limitDevs := make([]string, 0, len(physicalDevsMap))
+			limitDev := ""
 			for i := 0; i < len(req.DevicesIDs); i++ {
 				visibleDev = UUID[i]
+				if limits != "" {
+					limitDev = UUID[i] + "=" + limits
+					limitDevs = append(limitDevs, limitDev)
+				}
 				// if len(req.DevicesIDs) > 1 {
 				// 	if i == 0 {
 				// 		visibleDev = "GPU-a06cd524-72c4-d6f0-4eda-d64af512dd8b"
@@ -353,13 +360,26 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.Alloc
 				// }
 				visibleDevs = append(visibleDevs, visibleDev)
 			}
+			fmt.Println("----------------GPU Device Plugin 할당 GPU----------------")
 			fmt.Printf("User Pod using GPU UUID : %v\n", visibleDevs)
-			response := pluginapi.ContainerAllocateResponse{
-				Envs: map[string]string{
-					"NVIDIA_VISIBLE_DEVICES": strings.Join(visibleDevs, ","),
-				},
+			if limits != "" {
+				response := pluginapi.ContainerAllocateResponse{
+					Envs: map[string]string{
+						"NVIDIA_VISIBLE_DEVICES":           strings.Join(visibleDevs, ","),
+						"CUDA_MPS_PINNED_DEVICE_MEM_LIMIT": strings.Join(limitDevs, ","),
+					},
+				}
+
+				responses.ContainerResponses = append(responses.ContainerResponses, &response)
+			} else {
+				response := pluginapi.ContainerAllocateResponse{
+					Envs: map[string]string{
+						"NVIDIA_VISIBLE_DEVICES": strings.Join(visibleDevs, ","),
+					},
+				}
+
+				responses.ContainerResponses = append(responses.ContainerResponses, &response)
 			}
-			responses.ContainerResponses = append(responses.ContainerResponses, &response)
 
 		}
 
@@ -510,4 +530,33 @@ func getDeviceById(devices []*pluginapi.Device, deviceId string) *pluginapi.Devi
 	}
 
 	return nil
+}
+
+func (m *NvidiaDevicePlugin) GetPreferredAllocation(ctx context.Context, r *pluginapi.PreferredAllocationRequest) (*pluginapi.PreferredAllocationResponse, error) {
+	response := &pluginapi.PreferredAllocationResponse{}
+	for _, req := range r.ContainerRequests {
+		available, err := gpuallocator.NewDevicesFrom(req.AvailableDeviceIDs)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to retrieve list of available devices: %v", err)
+		}
+
+		required, err := gpuallocator.NewDevicesFrom(req.MustIncludeDeviceIDs)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to retrieve list of required devices: %v", err)
+		}
+
+		allocated := m.allocatePolicy.Allocate(available, required, int(req.AllocationSize))
+
+		var deviceIds []string
+		for _, device := range allocated {
+			deviceIds = append(deviceIds, device.UUID)
+		}
+
+		resp := &pluginapi.ContainerPreferredAllocationResponse{
+			DeviceIDs: deviceIds,
+		}
+
+		response.ContainerResponses = append(response.ContainerResponses, resp)
+	}
+	return response, nil
 }

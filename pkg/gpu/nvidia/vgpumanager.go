@@ -1,13 +1,12 @@
 package nvidia
 
 import (
+	"log"
 	"syscall"
 
-	"log"
-
-	"github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml"
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/fsnotify/fsnotify"
-	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
+	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 )
 
 type vGPUManager struct {
@@ -23,8 +22,8 @@ func NewVirtualGPUManager(vGPUCount int) *vGPUManager {
 
 func (vgm *vGPUManager) Run() error {
 	log.Println("Loading NVML")
-	if err := nvml.Init(); err != nil {
-		log.Printf("Failed to initialize NVML: %s.", err)
+	if err := nvml.Init(); err != nvml.SUCCESS {
+		log.Printf("Failed to initialize NVML: %v.", err)
 		log.Printf("If this is a GPU node, did you set the docker default runtime to `nvidia`?")
 
 		log.Printf("You can check the prerequisites at: https://github.com/awslabs/aws-virtual-gpu-device-plugin#prerequisites")
@@ -35,6 +34,12 @@ func (vgm *vGPUManager) Run() error {
 	defer func() { log.Println("Shutdown of NVML returned:", nvml.Shutdown()) }()
 
 	log.Println("Fetching devices.")
+	// devicenum, _ := nvml.DeviceGetCount()
+	// for i := 0; i < devicenum; i++ {
+	// 	device, _ := nvml.DeviceGetHandleByIndex(i)
+	// 	device.SetComputeMode(3)
+	// 	fmt.Println("Set GPU ComputeMode by Index :", i)
+	// }
 	if getDeviceCount() == 0 {
 		log.Println("No devices found. Waiting indefinitely.")
 		select {}

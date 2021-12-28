@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: testdeploy
+  name: testdeploy
+  namespace: userpod
+spec:
+  selector:
+    matchLabels:
+      app: testdeploy
+  template:
+    metadata:
+      labels:
+        app: testdeploy
+      name: testdeploy
+      namespace: userpod
+    spec:
+      hostIPC: true
+      schedulerName: gpu-scheduler
+      containers:
+        - image: ketidevit/kmc-cuda-test:v31
+          name: nbody
+          args:
+            - ./nbody
+            - -benchmark
+            - -numbodies=5120000
+          #resources:
+            #limits:
+              #keti.com/mpsgpu: 1
+          volumeMounts:
+           - name: nvidia-mps
+             mountPath: /tmp/nvidia-mps
+      volumes:
+       - name: nvidia-mps
+         hostPath:
+          path: /tmp/nvidia-mps
+

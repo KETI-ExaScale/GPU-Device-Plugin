@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: testpod
+  namespace: userpod
+  # annotations:
+  #   GPUlimits: "100M"
+spec:
+  schedulerName: gpu-scheduler
+  hostIPC: true
+  containers:
+    - image: ketidevit/kmc-cuda-test:v32
+      name: nbody
+      args:
+        - ./nbody
+        - -benchmark
+        - -numbodies=5120000
+      #  - printenv
+      # env:
+      #   - name: CUDA_MPS_PINNED_DEVICE_MEM_LIMIT
+      #     value: "GPU-f6db4146-092d-146f-0814-8ff90b04f3d2=500MB"
+      resources:
+        limits:
+          keti.com/mpsgpu: 1
+      volumeMounts:
+        - name: nvidia-mps
+          mountPath: /tmp/nvidia-mps
+  volumes:
+    - name: nvidia-mps
+      hostPath:
+        path: /tmp/nvidia-mps
+  restartPolicy: Never

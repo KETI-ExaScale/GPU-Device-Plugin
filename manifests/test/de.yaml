@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: keti-gpu-device-plugin
+  namespace: gpu
+spec:
+  selector:
+    matchLabels:
+      name: keti-gpu-device-plugin
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        name: keti-gpu-device-plugin
+    spec:
+      serviceAccountName: keti-gpu-device-plugin
+      hostIPC: true
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - key: keti.com/mpsgpu
+        operator: Exists
+        effect: NoSchedule
+      # initContainers:
+      # - name: set-compute-mode
+      #   image: nvidia/cuda:11.0.3-base-ubuntu18.04
+      #   command: ['nvidia-smi', '-c', 'EXCLUSIVE_PROCESS']
+      #   securityContext:
+      #     capabilities:
+      #       add: ["SYS_ADMIN"]
+      containers:
+      - image: ketidevit/gpu-device-plugin-kmc:v63
+        name: keti-gpu-device-plugin
+        args:
+        - /usr/bin/keti-gpu-device-plugin
+        - --ketimpsgpu=2
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            # drop: ["ALL"]
+            add: ["SYS_ADMIN"]
+        volumeMounts:
+        - name: device-plugin
+          mountPath: /var/lib/kubelet/device-plugins
+        - name: tz-config
+          mountPath: /etc/localtime
+        env:
+          - name: MY_NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+      - image: ketidevit/kmc-cuda-test:v11
+        name: mps
+        volumeMounts:
+        - name: nvidia-mps
+          mountPath: /tmp/nvidia-mps
+        - name: mps-log
+          mountPath: /tmp/nvidia-log
+        - name: tz-config
+          mountPath: /etc/localtime
+        env:
+        - name: CUDA_MPS_ACTIVE_THREAD_PERCENTAGE
+          value: "100"
+      nodeSelector:
+        gpu: a100
+      volumes:
+      - name: device-plugin
+        hostPath:
+          path: /var/lib/kubelet/device-plugins
+      - name: nvidia-mps
+        hostPath:
+          path: /tmp/nvidia-mps
+      - name: mps-log
+        hostPath:
+          path: /tmp/nvidia-log
+      - name: tz-config
+        hostPath:
+          path: /usr/share/zoneinfo/Asia/Seoul

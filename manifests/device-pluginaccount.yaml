@@ -59,15 +59,15 @@ spec:
       - key: keti.com/mpsgpu
         operator: Exists
         effect: NoSchedule
-      initContainers:
-      - name: set-compute-mode
-        image: nvidia/cuda:11.0.3-base-ubuntu18.04
-        command: ['nvidia-smi', '-c', 'EXCLUSIVE_PROCESS']
-        securityContext:
-          capabilities:
-            add: ["SYS_ADMIN"]
+      # initContainers:
+      # - name: set-compute-mode
+      #   image: nvidia/cuda:11.0.3-base-ubuntu18.04
+      #   command: ['nvidia-smi', '-c', 'EXCLUSIVE_PROCESS']
+      #   securityContext:
+      #     capabilities:
+      #       add: ["SYS_ADMIN"]
       containers:
-      - image: ketidevit/gpu-device-plugin-kmc:v51
+      - image: ketidevit/gpu-device-plugin-kmc:v63
         name: keti-gpu-device-plugin
         args:
         - /usr/bin/keti-gpu-device-plugin
@@ -75,7 +75,8 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
-            drop: ["ALL"]
+            # drop: ["ALL"]
+            add: ["SYS_ADMIN"]
         volumeMounts:
         - name: device-plugin
           mountPath: /var/lib/kubelet/device-plugins
@@ -86,7 +87,7 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: spec.nodeName
-      - image: nvidia/mps
+      - image: ketidevit/kmc-cuda-test:v11
         name: mps
         volumeMounts:
         - name: nvidia-mps
