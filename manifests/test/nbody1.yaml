@@ -42,4 +42,4 @@ spec:
             path: /tmp/nvidia-log
       restartPolicy: Never
   #backoffLimit: 4
-  parallelism: 3
+  #parallelism: 3

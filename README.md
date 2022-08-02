@@ -39,6 +39,3 @@ Log Check
     2021/12/28 11:03:51 Fetching devices.
     Set GPU ComputeMode by Index : 0
     Set GPU ComputeMode by Index : 1
-
-## Governance
-> This work was supported by Institute of Information & communications Technology Planning & Evaluation (IITP) grant funded by the Korea government(MSIT) (No.2021-0-00862, Development of DBMS storage engine technology to minimize massive data movement)
