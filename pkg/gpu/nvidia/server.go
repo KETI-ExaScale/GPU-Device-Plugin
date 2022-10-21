@@ -23,7 +23,6 @@ import (
 )
 
 const (
-	//resourceName           = "k8s.amazonaws.com/vgpu"
 	resourceName           = "keti.com/mpsgpu"
 	serverSock             = pluginapi.DevicePluginPath + "nvidia-keti-mpsgpu.sock"
 	envDisableHealthChecks = "DP_DISABLE_HEALTHCHECKS"
