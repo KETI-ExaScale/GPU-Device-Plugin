@@ -1,40 +1,3 @@
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: keti-gpu-device-plugin
-  namespace: gpu
----
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: keti-gpu-device-plugin
-  namespace: gpu
-subjects:
-- kind: ServiceAccount
-  name: keti-gpu-device-plugin
-  namespace: gpu
-roleRef:
-  kind: ClusterRole
-  name: cluster-admin
-  apiGroup: rbac.authorization.k8s.io
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: keti-gpu-device-plugin
-  namespace: gpu
-  labels:
-    name: keti-gpu-device-plugin
-spec:
-  type: LoadBalancer
-  ports:
-  - port: 2052
-    targetPort: 2052
-    nodePort: 32052
-    protocol: TCP
-  selector:
-    name: keti-gpu-device-plugin
----
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -67,7 +30,7 @@ spec:
       #     capabilities:
       #       add: ["SYS_ADMIN"]
       containers:
-      - image: ketidevit/gpu-device-plugin-kmc:v63
+      - image: ketidevit2/gpu-device-plugin-kmc:v63
         name: keti-gpu-device-plugin
         args:
         - /usr/bin/keti-gpu-device-plugin
@@ -107,3 +70,5 @@ spec:
       - name: tz-config
         hostPath:
           path: /usr/share/zoneinfo/Asia/Seoul
+
+

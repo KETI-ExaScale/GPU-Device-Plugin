@@ -23,8 +23,7 @@ import (
 )
 
 const (
-	//resourceName           = "k8s.amazonaws.com/vgpu"
-	resourceName           = "keti.com/mpsgpu"
+	resourceName           = "keti.com/mpsgpu" //여기서 지정
 	serverSock             = pluginapi.DevicePluginPath + "nvidia-keti-mpsgpu.sock"
 	envDisableHealthChecks = "DP_DISABLE_HEALTHCHECKS"
 	allHealthChecks        = "xids"
@@ -126,7 +125,6 @@ func (m *NvidiaDevicePlugin) Start() error {
 		lastCrashTime := time.Now()
 		restartCount := 0
 		for {
-			//fmt.Println("123")
 			log.Println("Starting GRPC server")
 			err := m.server.Serve(sock)
 			if err != nil {
@@ -245,11 +243,12 @@ func getpendingpodslist() (*v1.PodList, error) {
 	return podlist, nil
 }
 
-//var onepodnum = 0
+// var onepodnum = 0
 var podname = ""
 
 // Allocate which return list of devices.
 func (m *NvidiaDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.AllocateRequest) (*pluginapi.AllocateResponse, error) {
+	//여기가 메인임
 	//fmt.Println("allocate")
 	//fmt.Println(MyCaller())
 	//fmt.Println(reqs.ContainerRequests)
@@ -299,14 +298,12 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.Alloc
 		if err != nil {
 			fmt.Printf("pendingpod error\n")
 		}
-		//fmt.Println(UUIDs)
 		UUID = strings.Split(UUIDs, ",")
 		fmt.Println("----------------GPU Scheduler 선정 GPU----------------")
 		fmt.Printf("pod name : %v\n", assumePod.Name)
 		fmt.Printf("Pod Annotation UUID : %v\n", UUID)
 		physicalDevsMap := make(map[string]bool)
 		for _, req := range reqs.ContainerRequests {
-			//fmt.Println("456")
 			for _, id := range req.DevicesIDs {
 				if !deviceExists(devs, id) {
 					return nil, fmt.Errorf("invalid allocation request: unknown device: %s", id)
@@ -314,7 +311,7 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.Alloc
 
 				// Convert virtual GPUDeviceId to physical GPUDeviceID
 				physicalDevId := getPhysicalDeviceID(id)
-				//physicalDevId = "GPU-f6db4146-092d-146f-0814-8ff90b04f3d2"
+				//physicalDevId = "GPU-f6db4146-092d-146f-0814-8ff90b04f3d2-1 ~ -10"
 				if !physicalDevsMap[physicalDevId] {
 					physicalDevsMap[physicalDevId] = true
 				}
@@ -383,7 +380,8 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.Alloc
 
 		}
 
-	} else {
+	} else { //메콜 고려 안해도 돼서 없어도 됨
+		fmt.Println("====== do not delete ======")
 		physicalDevsMap := make(map[string]bool)
 		for _, req := range reqs.ContainerRequests {
 			//fmt.Println("456")
@@ -451,7 +449,6 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.Alloc
 
 			responses.ContainerResponses = append(responses.ContainerResponses, &response)
 		}
-		//fmt.Println("789")
 	}
 	// loc, err := time.LoadLocation("Asia/Seoul")
 	// if err != nil {

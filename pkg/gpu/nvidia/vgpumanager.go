@@ -34,12 +34,6 @@ func (vgm *vGPUManager) Run() error {
 	defer func() { log.Println("Shutdown of NVML returned:", nvml.Shutdown()) }()
 
 	log.Println("Fetching devices.")
-	// devicenum, _ := nvml.DeviceGetCount()
-	// for i := 0; i < devicenum; i++ {
-	// 	device, _ := nvml.DeviceGetHandleByIndex(i)
-	// 	device.SetComputeMode(3)
-	// 	fmt.Println("Set GPU ComputeMode by Index :", i)
-	// }
 	if getDeviceCount() == 0 {
 		log.Println("No devices found. Waiting indefinitely.")
 		select {}
@@ -62,14 +56,11 @@ func (vgm *vGPUManager) Run() error {
 L:
 	for {
 		if restart {
-			//fmt.Println("5")
 			if devicePlugin != nil {
 				devicePlugin.Stop()
 			}
 
 			devicePlugin = NewNvidiaDevicePlugin(vgm.vGPUCount)
-			//fmt.Println(devicePlugin)
-			//fmt.Println("1")
 			if err := devicePlugin.Serve(); err != nil {
 				log.Printf("You can check the prerequisites at: https://github.com/awslabs/aws-virtual-gpu-device-plugin#prerequisites")
 				log.Printf("You can learn how to set the runtime at: https://github.com/awslabs/aws-virtual-gpu-device-plugin#quick-start")
@@ -77,22 +68,18 @@ L:
 				restart = false
 			}
 		}
-		//fmt.Println("2")
 
 		select {
 		case event := <-watcher.Events:
-			//fmt.Println("3")
 			if event.Name == pluginapi.KubeletSocket && event.Op&fsnotify.Create == fsnotify.Create {
 				log.Printf("inotify: %s created, restarting.", pluginapi.KubeletSocket)
 				restart = true
-				//fmt.Println("6")
 			}
 
 		case err := <-watcher.Errors:
 			log.Printf("inotify: %s", err)
 
 		case s := <-sigs:
-			//fmt.Println("4")
 			switch s {
 			case syscall.SIGHUP:
 				log.Println("Received SIGHUP, restarting.")

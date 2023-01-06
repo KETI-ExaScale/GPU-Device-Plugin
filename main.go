@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	vGPU        = flag.Int("ketimpsgpu", 10, "Number of virtual GPUs")
+	vGPU        = flag.Int("ketimpsgpu", 10, "Number of virtual GPUs") //kubernetes에 등록할 GPU 수
 	InstanceGPU = flag.Int("ketiinstancegpu", 4, "Number of GPU Instance")
 )
 
@@ -26,6 +26,7 @@ func main() {
 
 	log.Println("Fetching devices.")
 	devicenum, _ := nvml.DeviceGetCount()
+	//아마 이쪽 for문이 MIG랑 기존 init 컨테이너에서 하던거 옮겨놓은건데 MIG는 테스트 못해봄
 	for i := 0; i < devicenum; i++ {
 		device, _ := nvml.DeviceGetHandleByIndex(i)
 		device.SetComputeMode(3)
@@ -63,7 +64,7 @@ func main() {
 	if *vGPU > VOLTA_MAXIMUM_MPS_CLIENT {
 		log.Fatal("Number of virtual GPUs can not exceed maximum number of MPS clients")
 	}
-
+	//여기가 가상 GPU 만드는 부분
 	vgm := nvidia.NewVirtualGPUManager(*vGPU)
 
 	err := vgm.Run()
