@@ -53,7 +53,7 @@ spec:
         name: keti-gpu-device-plugin
     spec:
       nodeSelector: 
-        gpu: "true"
+        gpu: "on"
       serviceAccountName: keti-gpu-device-plugin
       hostIPC: true
       tolerations:
