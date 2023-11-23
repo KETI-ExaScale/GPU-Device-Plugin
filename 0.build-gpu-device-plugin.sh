@@ -3,7 +3,7 @@ imagename="Exascale-keti-gpu-device-plugin"
 # imagename="gpu-device-plugin-kmc"
 version="v0.1"
 #version="v0.23"
-
+#khg
 #gpu-scheduler binary file
 go build -a --ldflags '-extldflags "-static"' -tags netgo -installsuffix netgo . && \
 
