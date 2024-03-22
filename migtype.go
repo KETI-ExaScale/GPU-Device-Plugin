@@ -1,4 +1,4 @@
-package deviceplugin
+package main
 
 var MaxInstance = map[string]int{"A100": 7, "A30": 4}
 

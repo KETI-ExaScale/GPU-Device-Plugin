@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 dest_path="/root/workspace/deployments/gpu-device-plugin"
-password="ketilinux"
-ip="10.0.5.120"
+password="대용량1!"
+ip="10.0.5.20"
 
 #$1 " " or deployment
 
